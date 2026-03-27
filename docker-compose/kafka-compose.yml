@@ -24,7 +24,7 @@ x-logging: &default-logging
 
 services:
   kafka:
-    image: apache/kafka:4.2
+    image: apache/kafka:4.2.0
     logging: *default-logging
     container_name: kafka
     restart: unless-stopped
