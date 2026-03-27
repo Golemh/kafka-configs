@@ -1,0 +1,125 @@
+# Kafka Broker Docker Compose
+#
+# Runs a single Kafka broker per VM. Each broker gets its identity from .env.
+# Deploy one instance of this compose file per broker VM.
+#
+# Required env vars (all set by cloud-init, no hardcoded values):
+#   KAFKA_NODE_ID          — Unique broker ID (1, 2, 3, ...)
+#   KAFKA_QUORUM_VOTERS    — KRaft quorum (e.g., 1@10.0.1.20:9093,2@10.0.1.21:9093,...)
+#   KAFKA_PRIVATE_IP       — This VM's private IP for inter-broker communication
+#   KAFKA_PUBLIC_IP        — VM's public IP for external listener
+#   KAFKA_CLUSTER_ID       — Stable cluster ID (shared across all brokers)
+#   KAFKA_REPLICATION_FACTOR — Replication factor for internal topics (e.g., 3)
+#   KAFKA_MIN_ISR          — Minimum in-sync replicas (e.g., 2)
+#   KAFKA_MEMORY_LIMIT     — Container memory limit (e.g., 768m)
+#   KAFKA_CPU_LIMIT        — Container CPU limit (e.g., 1.0)
+#   KAFKA_USER_HOME        — Home directory of the deploy user
+#   LOKI_ENDPOINT          — Loki push URL (e.g., http://10.0.0.x:3100)
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  kafka:
+    image: apache/kafka:4.2
+    logging: *default-logging
+    container_name: kafka
+    restart: unless-stopped
+    user: "1000:1000"
+    ports:
+      - "9092:9092"   # Inter-broker replication (private IP)
+      - "9093:9093"   # KRaft controller (private IP)
+      - "9094:9094"   # External clients (public IP)
+      - "15000:15000" # JMX
+    environment:
+      # KRaft — all identity comes from .env, nothing hardcoded
+      - KAFKA_KRAFT_MODE=true
+      - KAFKA_NODE_ID=${KAFKA_NODE_ID}
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://${KAFKA_PRIVATE_IP}:9092,EXTERNAL://${KAFKA_PUBLIC_IP}:9094
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=${KAFKA_QUORUM_VOTERS}
+
+      # Cluster durability — derived from broker count by Terraform
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=${KAFKA_REPLICATION_FACTOR:-1}
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=${KAFKA_REPLICATION_FACTOR:-1}
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=${KAFKA_MIN_ISR:-1}
+      - KAFKA_DEFAULT_REPLICATION_FACTOR=${KAFKA_REPLICATION_FACTOR:-1}
+      - KAFKA_MIN_INSYNC_REPLICAS=${KAFKA_MIN_ISR:-1}
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=false
+
+      # Broker defaults
+      - KAFKA_COMPRESSION_TYPE=lz4
+
+      # Paths & Cluster ID
+      - KAFKA_LOG_DIRS=/var/lib/kafka/data
+      - KAFKA_CLUSTER_ID=${KAFKA_CLUSTER_ID}
+
+      # JMX for Prometheus monitoring
+      - KAFKA_JMX_PORT=15000
+      - KAFKA_JMX_HOSTNAME=kafka
+      - KAFKA_JMX_OPTS=-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka
+
+    deploy:
+      resources:
+        limits:
+          memory: ${KAFKA_MEMORY_LIMIT:-768m}
+          cpus: "${KAFKA_CPU_LIMIT:-1.0}"
+    volumes:
+      - /data/kafka:/var/lib/kafka/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # Promtail — ships all container logs to Loki
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: promtail
+    volumes:
+      - ${KAFKA_USER_HOME}/kafka-configs/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/promtail-positions:/tmp
+    command: -config.file=/etc/promtail/config.yml -config.expand-env=true
+    environment:
+      - LOKI_ENDPOINT=${LOKI_ENDPOINT}
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: '0.1'
+    restart: unless-stopped
+
+  # JMX Exporter for Prometheus Kafka metrics
+  jmx-exporter:
+    image: bitnami/jmx-exporter:1.1.0
+    logging: *default-logging
+    container_name: jmx-exporter
+    ports:
+      - "7071:7071"
+    environment:
+      - JMX_HOST=kafka
+      - JMX_PORT=15000
+    volumes:
+      - ${KAFKA_USER_HOME}/kafka-configs/jmx-exporter/config.yaml:/etc/jmx-exporter/config.yaml:ro
+    command:
+      - "7071"
+      - "/etc/jmx-exporter/config.yaml"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.1"
+    restart: unless-stopped
