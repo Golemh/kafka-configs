@@ -101,7 +101,7 @@ services:
 
   # JMX Exporter for Prometheus Kafka metrics
   jmx-exporter:
-    image: bitnami/jmx-exporter:1.1.0
+    image: bitnami/jmx-exporter:latest
     logging: *default-logging
     container_name: jmx-exporter
     ports:
