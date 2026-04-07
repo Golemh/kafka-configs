@@ -56,6 +56,9 @@ services:
 
       # Broker defaults
       - KAFKA_COMPRESSION_TYPE=lz4
+      # Per-partition retention cap (disk safety net) and segment size for granular cleanup
+      - KAFKA_LOG_RETENTION_BYTES=${KAFKA_LOG_RETENTION_BYTES:-7516192768}
+      - KAFKA_LOG_SEGMENT_BYTES=${KAFKA_LOG_SEGMENT_BYTES:-268435456}
 
       # Paths & Cluster ID
       - KAFKA_LOG_DIRS=/var/lib/kafka/data

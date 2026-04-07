@@ -1,0 +1,11 @@
+meta:
+  name: stress-test
+  cluster: kafka-dev
+
+spec:
+  partitions: 9
+  replicationFactor: 3
+  settings:
+    retention.ms: "86400000"       # 1 day
+    cleanup.policy: "delete"
+    min.insync.replicas: "2"

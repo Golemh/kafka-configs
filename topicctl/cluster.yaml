@@ -1,0 +1,7 @@
+meta:
+  name: kafka-dev
+  environment: dev
+
+spec:
+  bootstrapAddrs:
+    - localhost:9092
