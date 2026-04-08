@@ -1,10 +1,14 @@
 meta:
   name: bluesky-posts
   cluster: kafka-dev
+  environment: dev
+  region: us-east-1
 
 spec:
   partitions: 3
   replicationFactor: 3
+  placement:
+    strategy: any
   settings:
     retention.ms: "604800000"      # 7 days
     cleanup.policy: "delete"
