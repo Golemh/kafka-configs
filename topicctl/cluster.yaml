@@ -3,5 +3,7 @@ meta:
   environment: dev
 
 spec:
+  # Use a broker's public IP on the external listener port.
+  # Get IPs from: cd cluster && terraform output kafka_public_ips
   bootstrapAddrs:
-    - localhost:9092
+    - localhost:9094
