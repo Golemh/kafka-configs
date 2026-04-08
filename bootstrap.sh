@@ -74,7 +74,7 @@ if [ "$NODE_ID" = "1" ]; then
   export PATH="$PATH:/snap/bin"
   export GOPATH="/tmp/go"
   export GOMODCACHE="/tmp/go/pkg/mod"
-  GOBIN=/usr/local/bin go install github.com/segmentio/topicctl/cmd/topicctl@v2.0.2
+  GOBIN=/usr/local/bin go install github.com/segmentio/topicctl/cmd/topicctl@latest
   rm -rf /tmp/go
 
   retries=0
