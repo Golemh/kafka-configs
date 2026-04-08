@@ -69,22 +69,28 @@ cd "${HOME_DIR}" && docker compose up -d
 
 # --- topicctl bootstrap (broker-1 only) ---
 if [ "$NODE_ID" = "1" ]; then
-  echo "  Installing topicctl and bootstrapping topics..."
-  curl -sL https://github.com/segmentio/topicctl/releases/latest/download/topicctl_linux_amd64 \
-    -o /usr/local/bin/topicctl && chmod +x /usr/local/bin/topicctl
+  echo "  Installing Go and topicctl..."
+  snap install go --classic 2>/dev/null || apt-get install -y golang-go
+  export PATH="$PATH:/snap/bin"
+  GOBIN=/usr/local/bin go install github.com/segmentio/topicctl/v2/cmd/topicctl@v2.0.2
+
   retries=0
   until docker exec kafka /opt/kafka/bin/kafka-broker-api-versions.sh \
     --bootstrap-server localhost:9092 > /dev/null 2>&1; do
     ((retries++)) || true
     if [ "$retries" -ge 30 ]; then
-      echo "  Kafka not ready after 30 retries, skipping topicctl"
+      echo "  Kafka not ready after 30 retries, skipping topic creation"
       break
     fi
     echo "  Waiting for Kafka to be ready... ($retries/30)"
     sleep 10
   done
-  cd "${HOME_DIR}/kafka-configs"
-  topicctl apply topicctl/topics/*.yaml --cluster-config topicctl/cluster.yaml --no-confirm
+
+  if [ "$retries" -lt 30 ]; then
+    echo "  Applying topic configurations..."
+    cd "${HOME_DIR}/kafka-configs"
+    topicctl apply topicctl/topics/*.yaml --cluster-config topicctl/cluster.yaml --no-confirm
+  fi
 fi
 
 # --- Node exporter ---
