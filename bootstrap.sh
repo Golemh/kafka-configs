@@ -72,8 +72,10 @@ if [ "$NODE_ID" = "1" ]; then
   echo "  Installing Go and topicctl..."
   snap install go --classic 2>/dev/null || apt-get install -y golang-go
   export PATH="$PATH:/snap/bin"
+  export HOME="/tmp"
   export GOPATH="/tmp/go"
   export GOMODCACHE="/tmp/go/pkg/mod"
+  export GOCACHE="/tmp/go/cache"
   GOBIN=/usr/local/bin go install github.com/segmentio/topicctl/cmd/topicctl@latest
   rm -rf /tmp/go
 
