@@ -72,10 +72,16 @@ if [ "$NODE_ID" = "1" ]; then
   echo "  Installing topicctl and bootstrapping topics..."
   curl -sL https://github.com/segmentio/topicctl/releases/latest/download/topicctl_linux_amd64 \
     -o /usr/local/bin/topicctl && chmod +x /usr/local/bin/topicctl
-  until docker exec $(docker ps -q -f name=kafka) kafka-broker-api-versions.sh \
+  retries=0
+  until docker exec kafka /opt/kafka/bin/kafka-broker-api-versions.sh \
     --bootstrap-server localhost:9092 > /dev/null 2>&1; do
-    echo "  Waiting for Kafka to be ready..."
-    sleep 5
+    ((retries++)) || true
+    if [ "$retries" -ge 30 ]; then
+      echo "  Kafka not ready after 30 retries, skipping topicctl"
+      break
+    fi
+    echo "  Waiting for Kafka to be ready... ($retries/30)"
+    sleep 10
   done
   cd "${HOME_DIR}/kafka-configs"
   topicctl apply topicctl/topics/*.yaml --cluster-config topicctl/cluster.yaml --no-confirm
