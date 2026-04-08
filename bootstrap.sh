@@ -72,7 +72,7 @@ if [ "$NODE_ID" = "1" ]; then
   echo "  Installing Go and topicctl..."
   snap install go --classic 2>/dev/null || apt-get install -y golang-go
   export PATH="$PATH:/snap/bin"
-  GOBIN=/usr/local/bin go install github.com/segmentio/topicctl/v2/cmd/topicctl@v2.0.2
+  GOBIN=/usr/local/bin go install github.com/segmentio/topicctl/cmd/topicctl@v2.0.2
 
   retries=0
   until docker exec kafka /opt/kafka/bin/kafka-broker-api-versions.sh \
