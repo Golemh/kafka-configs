@@ -78,11 +78,11 @@ services:
       - /data/kafka:/var/lib/kafka/data
 
     healthcheck:
-      test: ["CMD-SHELL", "cat < /dev/tcp/localhost/9092"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      interval: 30s
+      timeout: 45s
       retries: 10
-      start_period: 30s
+      start_period: 60s
 
   # Promtail — ships all container logs to Loki
   promtail:
