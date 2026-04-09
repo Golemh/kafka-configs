@@ -5,7 +5,7 @@ meta:
   region: us-east-1
 
 spec:
-  partitions: 9
+  partitions: 3
   replicationFactor: 3
   placement:
     strategy: any
