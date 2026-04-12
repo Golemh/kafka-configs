@@ -11,5 +11,6 @@ spec:
     strategy: any
   settings:
     retention.ms: "604800000"      # 7 days
+    retention.bytes: "2505397589"  # ~2.3 GB per partition (disk_size * 0.7 / 3 partitions)
     cleanup.policy: "delete"
     min.insync.replicas: "2"
